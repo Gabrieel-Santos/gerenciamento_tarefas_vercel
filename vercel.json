@@ -1,6 +1,8 @@
 {
   "rewrites": [
-    { "source": "/api/tasks/(.*)", "destination": "/api/index.js" },
+    { "source": "/api/tasks/:id", "destination": "/api/index.js" },
+    { "source": "/api/tasks/update-order", "destination": "/api/index.js" },
+    { "source": "/api/tasks", "destination": "/api/index.js" },
     { "source": "/(.*)", "destination": "/" }
   ]
 }

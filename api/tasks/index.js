@@ -13,6 +13,10 @@ app.use(
 
 // Configuração das rotas para tarefas
 app.use("/api/tasks", taskRoutes);
+app.use((req, res, next) => {
+  console.log(`Received ${req.method} request on ${req.path}`);
+  next();
+});
 
 // Exporta como função para a Vercel
 export default app;
