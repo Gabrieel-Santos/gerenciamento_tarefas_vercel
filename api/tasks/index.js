@@ -14,5 +14,5 @@ app.use(
 // Configuração das rotas para tarefas
 app.use("/api/tasks", taskRoutes);
 
-// Exportação do `app`
+// Exporta como função para a Vercel
 export default app;
