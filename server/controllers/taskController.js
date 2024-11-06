@@ -1,23 +1,52 @@
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
-// Criação de uma nova tarefa
-export const createTask = async (req, res) => {
-  const { titulo, descricao } = req.body;
+// Lista de Tarefas
+export const listTasks = async (req, res) => {
+  try {
+    const tarefas = await prisma.tarefa.findMany({
+      orderBy: { ordemApresentacao: "asc" },
+    });
+    res.json(tarefas);
+  } catch (error) {
+    console.error("Erro ao listar tarefas:", error);
+    res.status(500).json({ message: "Erro ao listar tarefas" });
+  }
+};
 
-  // Verifica se o título e a descrição estão presentes
-  if (!titulo || !descricao) {
+// Incluir uma nova tarefa
+export const createTask = async (req, res) => {
+  const { nome, custo, dataLimite } = req.body;
+
+  // Verifica se todos os campos obrigatórios foram informados
+  if (!nome || custo === undefined || !dataLimite) {
     return res
       .status(400)
-      .json({ message: "Título e descrição são obrigatórios" });
+      .json({ message: "Nome, custo e data limite são obrigatórios" });
   }
 
   try {
+    // Verifica se o nome já existe
+    const existingTask = await prisma.tarefa.findUnique({ where: { nome } });
+    if (existingTask) {
+      return res
+        .status(400)
+        .json({ message: "Já existe uma tarefa com este nome" });
+    }
+
+    // Define a ordem de apresentação para a nova tarefa
+    const lastTask = await prisma.tarefa.findFirst({
+      orderBy: { ordemApresentacao: "desc" },
+    });
+    const ordemApresentacao = lastTask ? lastTask.ordemApresentacao + 1 : 1;
+
+    // Cria a nova tarefa
     const novaTarefa = await prisma.tarefa.create({
       data: {
-        titulo,
-        descricao,
-        usuarioId: req.user.id, // Associa a tarefa ao usuário autenticado
+        nome,
+        custo,
+        dataLimite: new Date(dataLimite),
+        ordemApresentacao,
       },
     });
     res.status(201).json(novaTarefa);
@@ -27,81 +56,43 @@ export const createTask = async (req, res) => {
   }
 };
 
-// Listagem de tarefas paginadas
-export const getTasks = async (req, res) => {
-  const page = parseInt(req.query.page) || 1;
-  const pageSize = 5;
-
-  try {
-    // Conta o número total de tarefas do usuário
-    const totalTarefas = await prisma.tarefa.count({
-      where: { usuarioId: req.user.id },
-    });
-
-    // Busca as tarefas com paginação
-    const tarefas = await prisma.tarefa.findMany({
-      where: { usuarioId: req.user.id },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    });
-
-    const totalPages = Math.ceil(totalTarefas / pageSize);
-    res.json({ tarefas, currentPage: page, totalPages });
-  } catch (error) {
-    console.error("Erro ao listar tarefas:", error);
-    res.status(500).json({ message: "Erro ao listar tarefas" });
-  }
-};
-
-// Listagem de todas as tarefas para baixar o PDF
-export const getAllTasks = async (req, res) => {
-  try {
-    const tarefas = await prisma.tarefa.findMany({
-      where: { usuarioId: req.user.id },
-    });
-    res.json({ tarefas });
-  } catch (error) {
-    console.error("Erro ao listar todas as tarefas:", error);
-    res.status(500).json({ message: "Erro ao listar todas as tarefas" });
-  }
-};
-
-// Busca tarefa específica por ID
-export const getTaskById = async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const tarefa = await prisma.tarefa.findUnique({
-      where: { id: parseInt(id) },
-    });
-
-    // Verifica se a tarefa existe e se pertence ao usuário autenticado
-    if (!tarefa || tarefa.usuarioId !== req.user.id) {
-      return res.status(404).json({ message: "Tarefa não encontrada" });
-    }
-
-    res.json(tarefa);
-  } catch (error) {
-    console.error("Erro ao obter tarefa:", error);
-    res.status(500).json({ message: "Erro ao obter tarefa" });
-  }
-};
-
-// Atualização de uma tarefa
+// Editar uma tarefa
 export const updateTask = async (req, res) => {
   const { id } = req.params;
-  const { titulo, descricao, concluido } = req.body;
+  const { nome, custo, dataLimite } = req.body;
 
   try {
-    // Atualiza somente os campos fornecidos na requisição
+    // Verifica se o `id` e `nome` estão definidos
+    if (!id || !nome) {
+      return res
+        .status(400)
+        .json({ message: "ID e nome são obrigatórios para atualização." });
+    }
+
+    // Verifica se o novo nome já existe em outra tarefa
+    const existingTask = await prisma.tarefa.findFirst({
+      where: {
+        nome,
+        id: { not: parseInt(id) },
+      },
+    });
+
+    if (existingTask) {
+      return res
+        .status(400)
+        .json({ message: "Já existe uma tarefa com este nome" });
+    }
+
+    // Atualiza a tarefa
     const tarefaAtualizada = await prisma.tarefa.update({
       where: { id: parseInt(id) },
       data: {
-        titulo,
-        descricao,
-        concluido: concluido !== undefined ? concluido : undefined,
+        nome,
+        custo,
+        dataLimite: new Date(dataLimite),
       },
     });
+
     res.json(tarefaAtualizada);
   } catch (error) {
     console.error("Erro ao atualizar tarefa:", error);
@@ -109,27 +100,59 @@ export const updateTask = async (req, res) => {
   }
 };
 
-// Exclusão de uma tarefa
+// Excluir uma tarefa
 export const deleteTask = async (req, res) => {
   const { id } = req.params;
 
   try {
+    // Verifica se a tarefa existe antes de excluí-la
     const tarefa = await prisma.tarefa.findUnique({
       where: { id: parseInt(id) },
     });
-
-    // Verifica se a tarefa existe e pertence ao usuário
-    if (!tarefa || tarefa.usuarioId !== req.user.id) {
+    if (!tarefa) {
       return res.status(404).json({ message: "Tarefa não encontrada" });
     }
 
+    // Exclui a tarefa
     await prisma.tarefa.delete({
       where: { id: parseInt(id) },
     });
-
-    res.status(204).send(); // Tarefa excluída com sucesso, sem conteúdo retornado
+    res.status(204).send(); // Status 204 sem conteúdo
   } catch (error) {
     console.error("Erro ao excluir tarefa:", error);
     res.status(500).json({ message: "Erro ao excluir tarefa" });
+  }
+};
+
+// Atualizar a ordem de apresentação das tarefas
+export const updateTaskOrder = async (req, res) => {
+  const { orderedTasks } = req.body;
+
+  if (!orderedTasks || !Array.isArray(orderedTasks)) {
+    return res
+      .status(400)
+      .json({
+        message:
+          "Formato inválido para orderedTasks. Deve ser um array de objetos com id.",
+      });
+  }
+
+  try {
+    // Atualiza cada tarefa com a nova ordem de apresentação
+    const updatePromises = orderedTasks.map((task, index) => {
+      return prisma.tarefa.update({
+        where: { id: task.id },
+        data: { ordemApresentacao: index + 1 },
+      });
+    });
+
+    await Promise.all(updatePromises);
+
+    res
+      .status(200)
+      .json({ message: "Ordem das tarefas atualizada com sucesso!" });
+  } catch (error) {
+    console.error("Erro ao atualizar ordem das tarefas:", error);
+    res.status(500).json({ message: "Erro ao atualizar ordem das tarefas" });
   }
 };

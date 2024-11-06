@@ -3,26 +3,15 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-
-  url = env("POSTGRES_PRISMA_URL")
-
+  provider  = "postgresql"
+  url       = env("POSTGRES_PRISMA_URL")
   directUrl = env("POSTGRES_URL_NON_POOLING")
 }
 
-model Usuario {
-  id      Int      @id @default(autoincrement())
-  email   String   @unique
-  nome    String
-  senha   String
-  tarefas Tarefa[]
-}
-
 model Tarefa {
-  id        Int     @id @default(autoincrement())
-  titulo    String
-  descricao String
-  concluido Boolean @default(false)
-  usuario   Usuario @relation(fields: [usuarioId], references: [id])
-  usuarioId Int
+  id                Int      @id @default(autoincrement())
+  nome              String   @unique
+  custo             Float
+  dataLimite        DateTime
+  ordemApresentacao Int
 }

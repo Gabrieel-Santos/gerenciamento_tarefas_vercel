@@ -1,32 +1,27 @@
 import express from "express";
 import {
   createTask,
-  getTasks,
-  getTaskById,
+  listTasks,
   updateTask,
   deleteTask,
-  getAllTasks,
+  updateTaskOrder,
 } from "../controllers/taskController.js";
-import { authenticateToken } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
-// Rota para criar uma nova tarefa com autenticação
-router.post("/", authenticateToken, createTask);
+// Rota para atualizar a ordem de apresentação das tarefas
+router.put("/update-order", updateTaskOrder);
 
-// Rota para listar tarefas com paginação com requer autenticação
-router.get("/", authenticateToken, getTasks);
+// Rota para criar uma nova tarefa
+router.post("/", createTask);
 
-// Rota para listar todas as tarefas do usuário autenticado para baixar o PDF
-router.get("/all", authenticateToken, getAllTasks);
+// Rota para listar todas as tarefas (Lista de Tarefas)
+router.get("/", listTasks);
 
-// Rota para obter uma tarefa específica pelo ID
-router.get("/:id", authenticateToken, getTaskById);
+// Rota para atualizar uma tarefa específica (editar)
+router.put("/:id", updateTask);
 
-// Rota para atualizar uma tarefa específica com requer autenticação
-router.patch("/:id", authenticateToken, updateTask);
-
-// Rota para excluir uma tarefa específica com requer autenticação
-router.delete("/:id", authenticateToken, deleteTask);
+// Rota para excluir uma tarefa específica
+router.delete("/:id", deleteTask);
 
 export default router;

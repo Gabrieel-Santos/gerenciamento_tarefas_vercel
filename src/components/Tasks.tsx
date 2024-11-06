@@ -1,336 +1,384 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faTrash, faFilePdf } from "@fortawesome/free-solid-svg-icons";
+import {
+  faTrash,
+  faEdit,
+  faArrowUp,
+  faArrowDown,
+} from "@fortawesome/free-solid-svg-icons";
 import Modal from "react-modal";
-import jsPDF from "jspdf";
+import { DndProvider, useDrag, useDrop } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
+
 interface Task {
   id: number;
-  titulo: string;
-  descricao: string;
-  concluido: boolean;
+  nome: string;
+  custo: number;
+  dataLimite: string;
+  ordemApresentacao: number;
 }
 
-// Define o elemento root para a Modal
 Modal.setAppElement("#root");
+
+const ItemType = { TASK: "task" };
+
+interface TaskItemProps {
+  task: Task;
+  index: number;
+  totalTasks: number;
+  moveTask: (dragIndex: number, hoverIndex: number) => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+}
+
+const TaskItem: React.FC<TaskItemProps> = ({
+  task,
+  index,
+  totalTasks,
+  moveTask,
+  onEdit,
+  onDelete,
+  onMoveUp,
+  onMoveDown,
+}) => {
+  const ref = useRef<HTMLDivElement>(null);
+
+  const [, drop] = useDrop({
+    accept: ItemType.TASK,
+    hover: (draggedItem: { index: number }) => {
+      if (draggedItem.index !== index) {
+        moveTask(draggedItem.index, index);
+        draggedItem.index = index;
+      }
+    },
+  });
+
+  const [{ isDragging }, drag] = useDrag({
+    type: ItemType.TASK,
+    item: { index },
+    collect: (monitor) => ({
+      isDragging: monitor.isDragging(),
+    }),
+  });
+
+  drag(drop(ref));
+
+  return (
+    <div
+      ref={ref}
+      className={`flex items-center justify-between p-4 border rounded-lg ${
+        task.custo >= 1000 ? "bg-yellow-100" : "bg-white"
+      } ${isDragging ? "opacity-50" : ""}`}
+    >
+      <div>
+        <h3 className="text-lg font-semibold text-[#283d50]">{task.nome}</h3>
+        <p className="text-sm text-gray-600">R$ {task.custo.toFixed(2)}</p>
+        <p className="text-sm text-gray-600">
+          {new Date(task.dataLimite).toLocaleDateString()}
+        </p>
+      </div>
+      <div className="flex items-center space-x-3">
+        <button onClick={onMoveUp} disabled={index === 0}>
+          <FontAwesomeIcon
+            icon={faArrowUp}
+            className="text-[#007bff] cursor-pointer"
+          />
+        </button>
+        <button onClick={onMoveDown} disabled={index === totalTasks - 1}>
+          <FontAwesomeIcon
+            icon={faArrowDown}
+            className="text-[#007bff] cursor-pointer"
+          />
+        </button>
+        <FontAwesomeIcon
+          icon={faEdit}
+          onClick={onEdit}
+          className="text-[#007bff] hover:text-blue-600 cursor-pointer"
+          size="lg"
+        />
+        <FontAwesomeIcon
+          icon={faTrash}
+          onClick={onDelete}
+          className="text-[#f02849] hover:text-red-600 cursor-pointer"
+          size="lg"
+        />
+      </div>
+    </div>
+  );
+};
 
 const Tasks: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [error, setError] = useState("");
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
-  const [showModal, setShowModal] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
 
-  const navigate = useNavigate();
-
-  const fetchTasks = async (page: number) => {
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setError("Usuário não autenticado.");
-        return;
-      }
-
-      // Faz a requisição GET com paginação
-      const response = await axios.get("http://localhost:5000/tasks", {
-        params: { page },
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      setTasks(response.data.tarefas);
-      setTotalPages(response.data.totalPages);
-      setCurrentPage(response.data.currentPage);
-    } catch (error: unknown) {
-      // Tratamento de erro para requisição
-      if (axios.isAxiosError(error)) {
-        setError(error.response?.data.message || "Erro ao listar tarefas.");
-      } else {
-        setError("Erro inesperado. Por favor, tente novamente.");
-      }
-    }
-  };
-
-  // Carrega as tarefas ao montar o componente e quando a página muda
   useEffect(() => {
-    fetchTasks(currentPage);
-  }, [currentPage]);
+    fetchTasks();
+  }, []);
 
-  const handleTaskCompletion = async (id: number, concluido: boolean) => {
+  const fetchTasks = async () => {
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setError("Usuário não autenticado.");
-        return;
-      }
-
-      // Faz a requisição PATCH para atualizar o status de conclusão da tarefa
-      await axios.patch(
-        `http://localhost:5000/tasks/${id}`,
-        { concluido: !concluido },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      // Atualiza o estado das tarefas localmente
-      setTasks((prevTasks) =>
-        prevTasks.map((task) =>
-          task.id === id ? { ...task, concluido: !concluido } : task
-        )
-      );
-    } catch (error: unknown) {
-      if (axios.isAxiosError(error)) {
-        setError(error.response?.data.message || "Erro ao atualizar tarefa.");
-      } else {
-        setError("Erro inesperado. Por favor, tente novamente.");
-      }
+      const response = await axios.get("http://localhost:5000/tasks");
+      setTasks(response.data);
+    } catch (error) {
+      setError("Erro ao carregar as tarefas.");
+      console.error(error);
     }
   };
 
-  // Função para navegar para a página de detalhes da tarefa, evitando que o clique em checkbox ou ícone de exclusão também navegue
-  const handleTaskClick = (e: React.MouseEvent, taskId: number) => {
-    const target = e.target as HTMLElement;
-    if (target.tagName !== "INPUT" && !target.closest(".delete-icon")) {
-      navigate(`/tasks/${taskId}`);
-    }
-  };
-
-  // Função para abrir a modal de confirmação de exclusão
   const handleDeleteClick = (task: Task) => {
     setTaskToDelete(task);
-    setShowModal(true);
+    setShowDeleteModal(true);
   };
 
   const confirmDeleteTask = async () => {
     if (!taskToDelete) return;
 
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setError("Usuário não autenticado.");
-        return;
-      }
-
-      // Faz a requisição DELETE para remover a tarefa
-      await axios.delete(`http://localhost:5000/tasks/${taskToDelete.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      // Atualiza a lista de tarefas removendo a tarefa deletada
+      await axios.delete(`http://localhost:5000/tasks/${taskToDelete.id}`);
       setTasks((prevTasks) =>
         prevTasks.filter((task) => task.id !== taskToDelete.id)
       );
-      setShowModal(false);
+      setShowDeleteModal(false);
       setTaskToDelete(null);
-    } catch (error: unknown) {
-      if (axios.isAxiosError(error)) {
-        setError(error.response?.data.message || "Erro ao excluir tarefa.");
-      } else {
-        setError("Erro inesperado. Por favor, tente novamente.");
-      }
+    } catch (error) {
+      setError("Erro ao excluir tarefa.");
+      console.error(error);
     }
   };
 
-  const generatePDF = async () => {
-    const token = localStorage.getItem("token");
+  const handleEditClick = (task: Task) => {
+    setTaskToEdit({
+      ...task,
+      dataLimite: task.dataLimite.slice(0, 10),
+    });
+    setShowEditModal(true);
+  };
 
-    if (!token) {
-      alert("Usuário não autenticado.");
-      return;
-    }
+  const confirmEditTask = async () => {
+    if (!taskToEdit) return;
 
     try {
-      // Requisição para obter o perfil do usuário
-      const userResponse = await axios.get("http://localhost:5000/profile", {
-        headers: { Authorization: `Bearer ${token}` },
+      const existingTask = tasks.find(
+        (t) => t.nome === taskToEdit.nome && t.id !== taskToEdit.id
+      );
+      if (existingTask) {
+        setError("Já existe uma tarefa com este nome.");
+        return;
+      }
+
+      await axios.put(`http://localhost:5000/tasks/${taskToEdit.id}`, {
+        nome: taskToEdit.nome,
+        custo: taskToEdit.custo,
+        dataLimite: new Date(taskToEdit.dataLimite).toISOString(),
       });
 
-      // Requisição para obter todas as tarefas sem paginação
-      const allTasksResponse = await axios.get(
-        "http://localhost:5000/tasks/all",
+      setTasks((prevTasks) =>
+        prevTasks.map((task) => (task.id === taskToEdit.id ? taskToEdit : task))
+      );
+      setShowEditModal(false);
+      setTaskToEdit(null);
+    } catch (error) {
+      setError("Erro ao atualizar tarefa.");
+      console.error(error);
+    }
+  };
+  const updateTaskOrder = async (updatedTasks: Task[]) => {
+    console.log(
+      "Enviando ordem atualizada:",
+      updatedTasks.map((task) => ({ id: task.id }))
+    );
+    try {
+      const response = await axios.put(
+        "http://localhost:5000/tasks/update-order",
         {
-          headers: { Authorization: `Bearer ${token}` },
+          orderedTasks: updatedTasks.map((task) => ({ id: task.id })),
         }
       );
-
-      const { nome } = userResponse.data;
-      const allTasks = allTasksResponse.data.tarefas;
-
-      // Gera o PDF usando jsPDF
-      const doc = new jsPDF();
-
-      doc.setFont("Helvetica", "bold");
-      doc.setFontSize(20);
-      doc.setTextColor("#007bff");
-      doc.text(nome, 10, 20);
-
-      doc.setFontSize(14);
-      doc.setFont("Helvetica", "normal");
-
-      let yPosition = 40;
-
-      allTasks.forEach((task: Task) => {
-        doc.setTextColor("#283d50");
-        doc.text(task.titulo, 10, yPosition);
-        yPosition += 10;
-        if (task.concluido) {
-          doc.setTextColor("green");
-          doc.text("Concluída", 10, yPosition);
-        } else {
-          doc.setTextColor("#f02849");
-          doc.text("Não Concluída", 10, yPosition);
-        }
-        yPosition += 10;
-
-        doc.setTextColor("#525c69");
-        doc.text(doc.splitTextToSize(task.descricao, 180), 10, yPosition);
-        yPosition += 20;
-
-        if (yPosition > 270) {
-          doc.addPage();
-          yPosition = 20;
-        }
-      });
-
-      doc.save("Minhas_Tarefas.pdf");
+      console.log("Resposta do backend:", response.data);
     } catch (error) {
-      console.error("Erro ao gerar PDF:", error);
-      alert("Erro ao gerar PDF. Tente novamente.");
+      if (axios.isAxiosError(error) && error.response) {
+        console.error("Erro na resposta do backend:", error.response.data);
+      } else {
+        console.error("Erro desconhecido:", error);
+      }
+      setError("Erro ao atualizar a ordem das tarefas.");
     }
+  };
+
+  const moveTask = (from: number, to: number) => {
+    const updatedTasks = [...tasks];
+    const [movedTask] = updatedTasks.splice(from, 1);
+    updatedTasks.splice(to, 0, movedTask);
+
+    // Atualiza a ordem de apresentação localmente antes de enviar para o backend
+    updatedTasks.forEach((task, index) => (task.ordemApresentacao = index + 1));
+    setTasks(updatedTasks);
+
+    // Envia a nova ordem para o backend
+    updateTaskOrder(updatedTasks);
+  };
+
+  const moveTaskUp = (index: number) => {
+    if (index === 0) return;
+    moveTask(index, index - 1);
+  };
+
+  const moveTaskDown = (index: number) => {
+    if (index === tasks.length - 1) return;
+    moveTask(index, index + 1);
   };
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-[#ecf5ff]">
-      <div className="bg-white shadow-lg rounded-lg p-6 max-w-md w-full mt-8 mb-8">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-[#283d50]">Minhas Tarefas</h2>
-          <button
-            onClick={generatePDF}
-            className="text-[#283d50] hover:text-red-700 cursor-pointer"
-          >
-            <FontAwesomeIcon icon={faFilePdf} size="2x" />
-          </button>
-        </div>
-
-        {/* Exibe uma mensagem de erro se houver */}
-        {error && (
-          <p className="text-red-500 text-center mb-4 font-bold">{error}</p>
-        )}
-
-        {/* Exibe uma mensagem se não houver tarefas */}
-        {tasks.length === 0 ? (
-          <p className="text-center text-gray-500">
-            Você ainda não tem tarefas. Para começar clique{" "}
+    <DndProvider backend={HTML5Backend}>
+      <div className="flex justify-center items-center min-h-screen bg-[#ecf5ff]">
+        <div className="bg-white shadow-lg rounded-lg p-6 max-w-2xl w-full mt-8 mb-8">
+          <h2 className="text-2xl font-bold text-[#283d50] mb-6 text-center">
+            Minhas Tarefas
+          </h2>
+          {error && (
+            <p className="text-red-500 text-center mb-4 font-bold">{error}</p>
+          )}
+          <div className="space-y-4">
+            {tasks
+              .sort((a, b) => a.ordemApresentacao - b.ordemApresentacao)
+              .map((task, index) => (
+                <TaskItem
+                  key={task.id}
+                  task={task}
+                  index={index}
+                  totalTasks={tasks.length}
+                  moveTask={moveTask}
+                  onEdit={() => handleEditClick(task)}
+                  onDelete={() => handleDeleteClick(task)}
+                  onMoveUp={() => moveTaskUp(index)}
+                  onMoveDown={() => moveTaskDown(index)}
+                />
+              ))}
+          </div>
+          <div className="flex justify-center mt-6">
             <Link
               to="/add-task"
-              className="text-gray-500 hover:text-[#007bff] transition-colors"
+              className="bg-[#007bff] hover:bg-[#0056b3] text-white py-2 px-6 rounded-lg"
             >
-              aqui.
+              Incluir Tarefa
             </Link>
-          </p>
-        ) : (
-          <div className="space-y-4">
-            {tasks.map((task) => (
-              <div
-                key={task.id}
-                onClick={(e) => handleTaskClick(e, task.id)}
-                className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-100 cursor-pointer"
-              >
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={task.concluido}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      handleTaskCompletion(task.id, task.concluido);
-                    }}
-                    className="form-checkbox h-5 w-5 text-green-600 border-gray-300 rounded focus:ring-0 focus:outline-none mr-4"
-                    style={{ accentColor: "green" }}
-                  />
-                  <div className="block max-w-[200px] text-[#283d50]">
-                    <h3 className="text-lg font-semibold truncate">
-                      {task.titulo}
-                    </h3>
-                    <p className="text-sm text-gray-600 truncate">
-                      {task.descricao}
-                    </p>
-                  </div>
-                </div>
-                <FontAwesomeIcon
-                  icon={faTrash}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteClick(task);
-                  }}
-                  className="delete-icon text-[#283d50] hover:text-red-700 cursor-pointer ml-4"
-                  size="lg"
-                />
-              </div>
-            ))}
           </div>
-        )}
-
-        {/* Controle de paginação */}
-        <div className="flex justify-between mt-6">
-          <button
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage((prev) => prev - 1)}
-            className={`px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400 ${
-              currentPage === 1 ? "opacity-50 cursor-not-allowed" : ""
-            }`}
-          >
-            Anterior
-          </button>
-          <button
-            disabled={currentPage === totalPages}
-            onClick={() => setCurrentPage((prev) => prev + 1)}
-            className={`px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400 ${
-              currentPage === totalPages ? "opacity-50 cursor-not-allowed" : ""
-            }`}
-          >
-            Próximo
-          </button>
         </div>
+
+        {/* Modal para confirmação de exclusão */}
+        <Modal
+          isOpen={showDeleteModal}
+          onRequestClose={() => setShowDeleteModal(false)}
+          contentLabel="Confirmar Exclusão"
+          className="bg-white p-6 rounded-lg shadow-lg max-w-lg w-full mx-auto mt-20"
+          overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center"
+        >
+          <h2 className="text-lg font-bold text-[#283d50] mb-4">
+            Confirmar Exclusão
+          </h2>
+          <p className="mb-4">
+            Tem certeza de que deseja excluir a tarefa{" "}
+            <strong>{taskToDelete?.nome}</strong>?
+          </p>
+          <div className="flex justify-end space-x-4">
+            <button
+              onClick={() => setShowDeleteModal(false)}
+              className="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={confirmDeleteTask}
+              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+            >
+              Excluir
+            </button>
+          </div>
+        </Modal>
+
+        {/* Modal para edição da tarefa */}
+        <Modal
+          isOpen={showEditModal}
+          onRequestClose={() => setShowEditModal(false)}
+          contentLabel="Editar Tarefa"
+          className="bg-white p-6 rounded-lg shadow-lg max-w-lg w-full mx-auto mt-20"
+          overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center"
+        >
+          <h2 className="text-lg font-bold text-[#283d50] mb-4">
+            Editar Tarefa
+          </h2>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700">
+              Nome
+            </label>
+            <input
+              type="text"
+              value={taskToEdit?.nome || ""}
+              onChange={(e) =>
+                setTaskToEdit({ ...taskToEdit!, nome: e.target.value })
+              }
+              className="w-full p-2 border rounded"
+            />
+          </div>
+          <div className="mb-4 relative">
+            <label className="block text-sm font-medium text-gray-700">
+              Custo
+            </label>
+            <div className="flex items-center">
+              <span className="p-2 bg-gray-100 border border-r-0 rounded-l text-gray-500">
+                R$
+              </span>
+              <input
+                type="number"
+                value={taskToEdit?.custo || 0}
+                onChange={(e) =>
+                  setTaskToEdit({
+                    ...taskToEdit!,
+                    custo: parseFloat(e.target.value),
+                  })
+                }
+                className="w-full p-2 border rounded-r"
+              />
+            </div>
+          </div>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700">
+              Data Limite
+            </label>
+            <input
+              type="date"
+              value={taskToEdit ? taskToEdit.dataLimite : ""}
+              onChange={(e) =>
+                setTaskToEdit({ ...taskToEdit!, dataLimite: e.target.value })
+              }
+              className="w-full p-2 border rounded"
+            />
+          </div>
+          <div className="flex justify-end space-x-4">
+            <button
+              onClick={() => setShowEditModal(false)}
+              className="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={confirmEditTask}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+            >
+              Salvar
+            </button>
+          </div>
+        </Modal>
       </div>
-
-      {/* Modal para confirmação de exclusão */}
-      <Modal
-        isOpen={showModal}
-        onRequestClose={() => setShowModal(false)}
-        contentLabel="Confirmar Exclusão"
-        className="bg-white p-6 rounded-lg shadow-lg max-w-lg w-full mx-auto mt-20"
-        overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center"
-      >
-        <h2 className="text-lg font-bold text-[#283d50] mb-4">
-          Confirmar Exclusão
-        </h2>
-        <p className="mb-4">
-          Tem certeza de que deseja excluir a tarefa{" "}
-          <strong>
-            {taskToDelete &&
-            taskToDelete.titulo &&
-            taskToDelete.titulo.length > 20
-              ? `${taskToDelete.titulo.substring(0, 20)}...`
-              : taskToDelete?.titulo}
-          </strong>
-          ?
-        </p>
-        <div className="flex justify-end space-x-4">
-          <button
-            onClick={() => setShowModal(false)}
-            className="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={confirmDeleteTask}
-            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
-          >
-            Excluir
-          </button>
-        </div>
-      </Modal>
-    </div>
+    </DndProvider>
   );
 };
 
