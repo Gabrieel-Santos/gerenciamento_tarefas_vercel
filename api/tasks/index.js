@@ -2,13 +2,13 @@ import express from "express";
 import cors from "cors";
 import taskRoutes from "./taskRoutes.js";
 
+const app = express();
 app.use(
   cors({
     origin: "*",
     methods: ["GET", "POST", "PUT", "DELETE"],
   })
 );
-const app = express();
 app.use(express.json());
 
 // Configuração das rotas para tarefas
