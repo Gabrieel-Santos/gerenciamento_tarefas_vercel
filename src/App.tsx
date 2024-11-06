@@ -7,7 +7,6 @@ import {
 } from "react-router-dom";
 import AddTask from "./components/AddTask";
 import Tasks from "./components/Tasks";
-import TaskDetail from "./components/TaskDetail";
 import Footer from "./components/Footer";
 
 const App: React.FC = () => {
@@ -16,7 +15,6 @@ const App: React.FC = () => {
       <Routes>
         <Route path="/tasks" element={<Tasks />} />
         <Route path="/add-task" element={<AddTask />} />
-        <Route path="/tasks/:id" element={<TaskDetail />} />
         {/* Redireciona qualquer rota inválida para "/tasks" */}
         <Route path="*" element={<Navigate to="/tasks" />} />
       </Routes>
