@@ -179,7 +179,7 @@ const Tasks: React.FC = () => {
       }
 
       await axios.put(
-        `https://gerenciamento-tarefas.vercel.app/tasks/api/${taskToEdit.id}`,
+        `https://gerenciamento-tarefas.vercel.app/api/tasks/${taskToEdit.id}`,
         {
           nome: taskToEdit.nome,
           custo: taskToEdit.custo,
