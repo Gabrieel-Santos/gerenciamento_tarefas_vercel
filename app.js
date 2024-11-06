@@ -8,10 +8,7 @@ const app = express();
 app.use(express.json());
 
 // Configuração do CORS para permitir requisições de outras origens
-app.use(cors()); // Permite todas as origens
-
-// Alternativamente, para permitir apenas o frontend em localhost:5173, use:
-// app.use(cors({ origin: "http://localhost:5173" }));
+app.use(cors({ origin: "https://gerenciamento-tarefas.vercel.app" }));
 
 // Rotas
 app.use("/tasks", taskRoutes);

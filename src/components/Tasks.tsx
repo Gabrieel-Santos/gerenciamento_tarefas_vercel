@@ -125,7 +125,9 @@ const Tasks: React.FC = () => {
 
   const fetchTasks = async () => {
     try {
-      const response = await axios.get("http://localhost:5000/tasks");
+      const response = await axios.get(
+        "https://gerenciamento-tarefas.vercel.app/tasks"
+      );
       setTasks(response.data);
     } catch (error) {
       setError("Erro ao carregar as tarefas.");
@@ -142,7 +144,9 @@ const Tasks: React.FC = () => {
     if (!taskToDelete) return;
 
     try {
-      await axios.delete(`http://localhost:5000/tasks/${taskToDelete.id}`);
+      await axios.delete(
+        `https://gerenciamento-tarefas.vercel.app/tasks/${taskToDelete.id}`
+      );
       setTasks((prevTasks) =>
         prevTasks.filter((task) => task.id !== taskToDelete.id)
       );
@@ -174,11 +178,14 @@ const Tasks: React.FC = () => {
         return;
       }
 
-      await axios.put(`http://localhost:5000/tasks/${taskToEdit.id}`, {
-        nome: taskToEdit.nome,
-        custo: taskToEdit.custo,
-        dataLimite: new Date(taskToEdit.dataLimite).toISOString(),
-      });
+      await axios.put(
+        `https://gerenciamento-tarefas.vercel.app/tasks/${taskToEdit.id}`,
+        {
+          nome: taskToEdit.nome,
+          custo: taskToEdit.custo,
+          dataLimite: new Date(taskToEdit.dataLimite).toISOString(),
+        }
+      );
 
       setTasks((prevTasks) =>
         prevTasks.map((task) => (task.id === taskToEdit.id ? taskToEdit : task))
@@ -197,7 +204,7 @@ const Tasks: React.FC = () => {
     );
     try {
       const response = await axios.put(
-        "http://localhost:5000/tasks/update-order",
+        "https://gerenciamento-tarefas.vercel.app/tasks/update-order",
         {
           orderedTasks: updatedTasks.map((task) => ({ id: task.id })),
         }
