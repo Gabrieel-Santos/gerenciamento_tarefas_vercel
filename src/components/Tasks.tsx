@@ -218,7 +218,7 @@ const Tasks: React.FC = () => {
     const [movedTask] = updatedTasks.splice(from, 1);
     updatedTasks.splice(to, 0, movedTask);
 
-    // Atualiza a ordem de apresentação localmente antes de enviar para o backend
+    // Atualiza a ordem de apresentação localmente antes de enviar para o backenddd
     updatedTasks.forEach((task, index) => (task.ordemApresentacao = index + 1));
     setTasks(updatedTasks);
 
