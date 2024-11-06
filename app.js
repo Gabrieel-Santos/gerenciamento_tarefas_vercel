@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors"; // Importa o pacote cors
-import taskRoutes from "./server/routes/taskRoutes.js";
+import taskRoutes from "./api/tasks/taskRoutes.js";
 
 const app = express();
 

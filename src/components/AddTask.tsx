@@ -22,7 +22,7 @@ const AddTask: React.FC = () => {
     try {
       // Requisição para adicionar uma nova tarefa
       const response = await axios.post(
-        "https://gerenciamento-tarefas.vercel.app/tasks",
+        "https://gerenciamento-tarefas.vercel.app/api/tasks",
         {
           nome,
           custo,

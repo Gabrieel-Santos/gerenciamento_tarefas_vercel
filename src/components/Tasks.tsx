@@ -126,7 +126,7 @@ const Tasks: React.FC = () => {
   const fetchTasks = async () => {
     try {
       const response = await axios.get(
-        "https://gerenciamento-tarefas.vercel.app/tasks"
+        "https://gerenciamento-tarefas.vercel.app/api/tasks"
       );
       setTasks(response.data);
     } catch (error) {
@@ -145,7 +145,7 @@ const Tasks: React.FC = () => {
 
     try {
       await axios.delete(
-        `https://gerenciamento-tarefas.vercel.app/tasks/${taskToDelete.id}`
+        `https://gerenciamento-tarefas.vercel.app/api/tasks/${taskToDelete.id}`
       );
       setTasks((prevTasks) =>
         prevTasks.filter((task) => task.id !== taskToDelete.id)
@@ -179,7 +179,7 @@ const Tasks: React.FC = () => {
       }
 
       await axios.put(
-        `https://gerenciamento-tarefas.vercel.app/tasks/${taskToEdit.id}`,
+        `https://gerenciamento-tarefas.vercel.app/tasks/api/${taskToEdit.id}`,
         {
           nome: taskToEdit.nome,
           custo: taskToEdit.custo,
@@ -204,7 +204,7 @@ const Tasks: React.FC = () => {
     );
     try {
       const response = await axios.put(
-        "https://gerenciamento-tarefas.vercel.app/tasks/update-order",
+        "https://gerenciamento-tarefas.vercel.app/api/tasks/update-order",
         {
           orderedTasks: updatedTasks.map((task) => ({ id: task.id })),
         }
