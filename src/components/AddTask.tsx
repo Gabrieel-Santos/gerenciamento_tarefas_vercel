@@ -21,14 +21,11 @@ const AddTask: React.FC = () => {
 
     try {
       // Requisição para adicionar uma nova tarefa
-      const response = await axios.post(
-        "https://gerenciamento-tarefas.vercel.app/api/tasks",
-        {
-          nome,
-          custo,
-          dataLimite,
-        }
-      );
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}`, {
+        nome,
+        custo,
+        dataLimite,
+      });
 
       if (response.status === 201) {
         // Limpa os campos do formulário após o sucesso

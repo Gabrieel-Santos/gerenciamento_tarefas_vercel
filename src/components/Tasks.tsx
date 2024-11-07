@@ -125,9 +125,7 @@ const Tasks: React.FC = () => {
 
   const fetchTasks = async () => {
     try {
-      const response = await axios.get(
-        "https://gerenciamento-tarefas.vercel.app/api/tasks"
-      );
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}`);
       setTasks(response.data);
     } catch (error) {
       setError("Erro ao carregar as tarefas.");
@@ -144,9 +142,7 @@ const Tasks: React.FC = () => {
     if (!taskToDelete) return;
 
     try {
-      await axios.delete(
-        `https://gerenciamento-tarefas.vercel.app/api/tasks/${taskToDelete.id}`
-      );
+      await axios.delete(`${import.meta.env.VITE_API_URL}/${taskToDelete.id}`);
       setTasks((prevTasks) =>
         prevTasks.filter((task) => task.id !== taskToDelete.id)
       );
@@ -178,14 +174,11 @@ const Tasks: React.FC = () => {
         return;
       }
 
-      await axios.put(
-        `https://gerenciamento-tarefas.vercel.app/api/tasks/${taskToEdit.id}`,
-        {
-          nome: taskToEdit.nome,
-          custo: taskToEdit.custo,
-          dataLimite: new Date(taskToEdit.dataLimite).toISOString(),
-        }
-      );
+      await axios.put(`${import.meta.env.VITE_API_URL}/${taskToEdit.id}`, {
+        nome: taskToEdit.nome,
+        custo: taskToEdit.custo,
+        dataLimite: new Date(taskToEdit.dataLimite).toISOString(),
+      });
 
       setTasks((prevTasks) =>
         prevTasks.map((task) => (task.id === taskToEdit.id ? taskToEdit : task))
@@ -197,6 +190,7 @@ const Tasks: React.FC = () => {
       console.error(error);
     }
   };
+
   const updateTaskOrder = async (updatedTasks: Task[]) => {
     console.log(
       "Enviando ordem atualizada:",
@@ -204,7 +198,7 @@ const Tasks: React.FC = () => {
     );
     try {
       const response = await axios.put(
-        "https://gerenciamento-tarefas.vercel.app/api/tasks/update-order",
+        `${import.meta.env.VITE_API_URL}/update-order`,
         {
           orderedTasks: updatedTasks.map((task) => ({ id: task.id })),
         }
@@ -225,11 +219,9 @@ const Tasks: React.FC = () => {
     const [movedTask] = updatedTasks.splice(from, 1);
     updatedTasks.splice(to, 0, movedTask);
 
-    // Atualiza a ordem de apresentação localmente antes de enviar para o backenddd
     updatedTasks.forEach((task, index) => (task.ordemApresentacao = index + 1));
     setTasks(updatedTasks);
 
-    // Envia a nova ordem para o backend
     updateTaskOrder(updatedTasks);
   };
 
@@ -280,7 +272,6 @@ const Tasks: React.FC = () => {
           </div>
         </div>
 
-        {/* Modal para confirmação de exclusão */}
         <Modal
           isOpen={showDeleteModal}
           onRequestClose={() => setShowDeleteModal(false)}
@@ -311,7 +302,6 @@ const Tasks: React.FC = () => {
           </div>
         </Modal>
 
-        {/* Modal para edição da tarefa */}
         <Modal
           isOpen={showEditModal}
           onRequestClose={() => setShowEditModal(false)}
